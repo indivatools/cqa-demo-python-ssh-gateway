@@ -2,15 +2,16 @@
 """Stand-in for an access point's CLI, so the gateway demo has something to drive.
 
 It does nothing real. It keeps a firmware version and a controller address in a
-state file, enough to show the flow from the call: read the version, re-point
-the device from the production controller to the QA one, and read it back.
+state file, enough to show a typical lab flow: read the version, re-point the
+device from the production controller to the QA one, and read it back.
 
   demo-cli get version                one-shot, for the gateway's exec mode
   demo-cli --interactive [--login]    prompt loop, for shell mode; --login asks
                                       "Please login:" / "Password:" first, like
                                       a device that logs in again inside SSH
 
-Runs on the box's system python (3.9 on AL2023): stdlib only, no 3.10+ syntax.
+Stdlib only and Python 3.9-compatible, so it runs on a device image's system
+Python without installing anything.
 """
 
 import getpass

@@ -138,6 +138,19 @@ class ValidateRequestTest(unittest.TestCase):
         with self.assertRaises(gateway.RequestError):
             gateway.validate_request(exec_body(mode="shell", prompt="("), POLICY)
 
+    def test_policy_reads_commands_file(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+            f.write("# allowed device commands\n^show \n\n^get \n")
+        try:
+            policy = gateway.Policy.from_env(
+                {"ALLOWED_TARGETS": "10.20.0.0/24", "ALLOWED_COMMANDS_FILE": f.name})
+        finally:
+            os.unlink(f.name)
+        self.assertEqual([p.pattern for p in policy.command_patterns], ["^show", "^get"])
+        policy.check_command("show version")
+        with self.assertRaises(gateway.RequestError):
+            policy.check_command("reboot")
+
     def test_policy_needs_a_target(self):
         with self.assertRaises(ValueError):
             gateway.Policy.from_strings("")
@@ -248,7 +261,8 @@ class LambdaHandlerTest(unittest.TestCase):
         self.assertEqual(reply["statusCode"], 405)
 
     def test_rejects_direct_invoke_without_url_context(self):
-        # lambda.tf's unconditioned InvokeFunction grant relies on this.
+        # A public Function URL also grants lambda:InvokeFunction. A direct
+        # invoke carries no HTTP context and must be refused before any SSH.
         reply = lambda_function.handler(exec_body(), None)
         self.assertEqual(reply["statusCode"], 405)
 

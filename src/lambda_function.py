@@ -4,6 +4,7 @@ Environment:
   GATEWAY_TOKEN_SHA256   hex SHA-256 of the bearer token callers must present
   ALLOWED_TARGETS        comma-separated CIDRs / hostnames the gateway may SSH to
   ALLOWED_COMMANDS       optional newline-separated regexes; a command must match one
+  ALLOWED_COMMANDS_FILE  optional path to a file of regexes, one per line
 """
 
 import base64
@@ -17,9 +18,7 @@ from gateway import Policy, RequestError, connect_paramiko, run, validate_reques
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-POLICY = Policy.from_strings(
-    os.environ["ALLOWED_TARGETS"], os.environ.get("ALLOWED_COMMANDS", "")
-)
+POLICY = Policy.from_env(os.environ)
 TOKEN_SHA256 = os.environ["GATEWAY_TOKEN_SHA256"]
 
 HTTP_OK = 200
