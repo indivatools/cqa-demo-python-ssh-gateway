@@ -1,0 +1,27 @@
+# Local end-to-end demo: the gateway plus a fake access point to SSH into.
+#
+#   docker compose up --build
+#   curl -s localhost:8080/healthz
+#
+# DEMO VALUES ONLY. The token below is "demo-token"; its SHA-256 is what the
+# gateway stores. Generate your own for anything real (see README).
+services:
+  gateway:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      GATEWAY_TOKEN_SHA256: 7c43ef5ae21d43ce2743f770c68e24def1a43ee2f416d2438410c8af7af2ff2c
+      ALLOWED_TARGETS: device
+      ALLOWED_COMMANDS: |-
+        ^demo-cli (get|set|reset|help)\b
+        ^(get|set|reset) [a-z]
+        ^help$
+    depends_on:
+      - device
+
+  device:
+    build: demo/device
+    environment:
+      DEVICE_PASSWORD: demo-password
+    # No published port: only the gateway can reach it, as in a real lab.

@@ -1,0 +1,33 @@
+# Public-repo stand-in for the org's required security checks. Those call the
+# private indivatools/.github repo, which a public repo cannot resolve, so this
+# runs the same class of scans from public images instead.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Scan full history for secrets
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git --redact --verbose /repo
+
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Static analysis
+        run: >
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.181.0
+          semgrep scan --config p/default --config p/python --config p/dockerfile --error --metrics off

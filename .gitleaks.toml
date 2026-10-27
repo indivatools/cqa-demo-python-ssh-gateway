@@ -1,0 +1,12 @@
+# Default gitleaks rules, minus the published demo token used by the local
+# docker-compose walkthrough ("demo-token" and its SHA-256). Exact matches
+# only: any other token-shaped value still fails the scan.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented demo-only token for docker-compose.yml / README"
+regexes = [
+  '''^demo-token$''',
+  '''^7c43ef5ae21d43ce2743f770c68e24def1a43ee2f416d2438410c8af7af2ff2c$''',
+]
