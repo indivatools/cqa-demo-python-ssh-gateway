@@ -1,0 +1,4 @@
+# This public repo cannot run the org's workflow-guard check, so code-owner
+# review is what gates changes to CI configuration here.
+
+.github/              @rohithzr @barotdeep

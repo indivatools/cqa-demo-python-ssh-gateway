@@ -1,0 +1,9 @@
+#!/bin/sh
+# Login shell of the `ap` user. Like a real access point it has no exec
+# channel: callers must open an interactive session (the gateway's shell mode)
+# and log in again inside it.
+if [ "$1" = "-c" ]; then
+  echo "ERROR: this device only supports an interactive CLI session" >&2
+  exit 1
+fi
+exec /usr/local/bin/demo-cli --interactive --login
