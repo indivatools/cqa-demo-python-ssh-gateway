@@ -23,7 +23,7 @@ import re
 import socket
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Protocol
+from typing import Callable, Mapping, Protocol
 
 DEFAULT_PORT = 22
 DEFAULT_TIMEOUT_SECONDS = 20
@@ -71,6 +71,20 @@ class Policy:
             raise ValueError("ALLOWED_TARGETS must name at least one host or CIDR")
         patterns = tuple(re.compile(p) for p in _split_csv(command_patterns, sep="\n"))
         return cls(tuple(networks), frozenset(hostnames), patterns)
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str]) -> "Policy":
+        """ALLOWED_TARGETS, plus command regexes from ALLOWED_COMMANDS and/or
+        ALLOWED_COMMANDS_FILE (one regex per line; blank and # lines skipped).
+        The file form exists because env files (docker --env-file, systemd
+        EnvironmentFile) cannot hold multi-line values."""
+        commands = env.get("ALLOWED_COMMANDS", "")
+        path = env.get("ALLOWED_COMMANDS_FILE")
+        if path:
+            with open(path, encoding="utf-8") as f:
+                lines = [ln.strip() for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
+            commands = "\n".join([commands, *lines])
+        return cls.from_strings(env["ALLOWED_TARGETS"], commands)
 
     def check_target(self, host: str) -> None:
         if host.lower() in self.allowed_hostnames:

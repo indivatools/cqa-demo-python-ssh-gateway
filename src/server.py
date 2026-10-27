@@ -91,7 +91,7 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    policy = Policy.from_strings(os.environ["ALLOWED_TARGETS"], os.environ.get("ALLOWED_COMMANDS", ""))
+    policy = Policy.from_env(os.environ)
     handler = make_handler(policy, os.environ["GATEWAY_TOKEN_SHA256"])
     server = ThreadingHTTPServer((args.bind, args.port), handler)
     logger.info("ssh-gateway listening on %s:%d", args.bind, args.port)
