@@ -29,6 +29,22 @@ The function only ever stores the hash.
 
 ## 3. Create the function
 
+Write the environment to a JSON file. JSON can carry the multi-line
+`ALLOWED_COMMANDS` value (`\n` between regexes), which the inline
+`Variables={...}` syntax cannot:
+
+```sh
+cat > env.json <<EOF
+{"Variables": {
+  "GATEWAY_TOKEN_SHA256": "$TOKEN_SHA256",
+  "ALLOWED_TARGETS": "10.20.0.0/24",
+  "ALLOWED_COMMANDS": "^show \\\\S+\n^get \\\\S+"
+}}
+EOF
+```
+
+Then create the role and the function:
+
 ```sh
 REGION=us-east-1
 SUBNETS=subnet-aaa,subnet-bbb          # private subnets that can route to the devices
@@ -47,10 +63,11 @@ aws lambda create-function --region $REGION \
   --role "arn:aws:iam::<ACCOUNT_ID>:role/ssh-gateway-lambda" \
   --timeout 90 --memory-size 256 \
   --vpc-config SubnetIds=$SUBNETS,SecurityGroupIds=$SG \
-  --environment "Variables={GATEWAY_TOKEN_SHA256=$TOKEN_SHA256,ALLOWED_TARGETS=10.20.0.0/24}"
+  --environment file://env.json
 ```
 
-Optionally add `ALLOWED_COMMANDS` (newline-separated regexes) to the environment.
+`ALLOWED_COMMANDS` is optional; remove it from `env.json` to allow any command
+on an allowed target.
 
 ## 4. Expose it with a Function URL
 
@@ -67,7 +84,7 @@ aws lambda add-permission --region $REGION --function-name ssh-gateway \
   --principal '*' --invoked-via-function-url
 ```
 
-`--auth-type NONE` means "no IAM signing" — the gateway still rejects any call
+`--auth-type NONE` means no IAM signing; the gateway still rejects any call
 without the bearer token. ContextQA API steps send a header, not a SigV4
 signature, so IAM auth would not work here.
 
@@ -89,5 +106,5 @@ curl -s "$URL" -H "Authorization: Bearer $TOKEN" -H 'content-type: application/j
   never calls AWS APIs at runtime, so no NAT gateway or VPC endpoints.
 - A VPC Lambda's cold start is a few seconds; set the ContextQA step timeout
   accordingly.
-- Logs go to CloudWatch (`/aws/lambda/ssh-gateway`): host, commands and exit
-  codes only — never passwords or command output.
+- Logs go to CloudWatch (`/aws/lambda/ssh-gateway`). They contain host,
+  commands and exit codes, never passwords or command output.

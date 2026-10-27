@@ -29,11 +29,25 @@ TOKEN=$(openssl rand -hex 24)              # give this to ContextQA
 sudo tee /etc/ssh-gateway.env >/dev/null <<EOF
 GATEWAY_TOKEN_SHA256=$(printf %s "$TOKEN" | sha256sum | cut -d' ' -f1)
 ALLOWED_TARGETS=10.20.0.0/24
+ALLOWED_COMMANDS_FILE=/etc/ssh-gateway.commands
 HOST=127.0.0.1
 PORT=8080
 EOF
-sudo chmod 0640 /etc/ssh-gateway.env && sudo chgrp ssh-gateway /etc/ssh-gateway.env
+
+# One regex per line; every command must match one. Delete the file and the
+# ALLOWED_COMMANDS_FILE line above to allow any command on an allowed target.
+sudo tee /etc/ssh-gateway.commands >/dev/null <<'EOF'
+# read-only checks
+^show \S+
+^get \S+
+EOF
+
+sudo chgrp ssh-gateway /etc/ssh-gateway.env /etc/ssh-gateway.commands
+sudo chmod 0640 /etc/ssh-gateway.env /etc/ssh-gateway.commands
 ```
+
+The command list lives in its own file because systemd and `docker --env-file`
+cannot hold multi-line values.
 
 ## Run as a service
 
@@ -50,8 +64,13 @@ journalctl -u ssh-gateway -f
 ```sh
 docker build -t ssh-gateway .
 docker run -d --name ssh-gateway --restart unless-stopped \
-  -p 127.0.0.1:8080:8080 --env-file /etc/ssh-gateway.env -e HOST=0.0.0.0 ssh-gateway
+  -p 127.0.0.1:8080:8080 --env-file /etc/ssh-gateway.env -e HOST=0.0.0.0 \
+  -v /etc/ssh-gateway.commands:/etc/ssh-gateway.commands:ro ssh-gateway
 ```
+
+The container runs as an unprivileged user, so make the commands file
+world-readable (`chmod 0644`) when you mount it, or drop
+`ALLOWED_COMMANDS_FILE`.
 
 (`HOST=0.0.0.0` inside the container; the `-p 127.0.0.1:` mapping keeps it
 local on the host.)
