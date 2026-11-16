@@ -10,7 +10,9 @@ ContextQA ──tunnel──▶ tunnel agent (lab box) ──▶ 127.0.0.1:8080 
 ```
 
 Works on any Linux host with Python 3.10+ (Ubuntu, RHEL, Amazon Linux, a GCE or
-EC2 VM, a Raspberry Pi on the lab bench).
+EC2 VM, a Raspberry Pi on the lab bench). The steps below use systemd; the
+gateway itself is plain Python and also runs on Windows (start it with
+`python src/server.py` or under WSL/Docker).
 
 ## Install
 

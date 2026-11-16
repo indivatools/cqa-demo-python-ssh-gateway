@@ -1,10 +1,11 @@
 import hashlib
 import json
 import os
-import select
+import queue
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -54,7 +55,9 @@ class PipeChannel:
     """Drives the real demo_cli.py over pipes, standing in for an SSH shell.
 
     Pipes rather than a PTY so this runs in sandboxes and CI without TTYs;
-    stderr is merged because getpass prompts there when stdin is not a TTY.
+    stderr is merged so any prompt or traceback the CLI prints is captured.
+    A reader thread drains stdout into a queue because select() only works
+    on sockets on Windows, not pipes.
     """
 
     def __init__(self, env):
@@ -63,7 +66,22 @@ class PipeChannel:
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             env=env,
         )
-        self.out = self.proc.stdout.fileno()
+        self._chunks = queue.Queue()
+        self._pending = b""
+        self._reader = threading.Thread(target=self._drain, daemon=True)
+        self._reader.start()
+
+    def _drain(self):
+        out = self.proc.stdout
+        read = getattr(out, "read1", out.read)
+        while True:
+            try:
+                chunk = read(4096)
+            except (OSError, ValueError):
+                chunk = b""
+            self._chunks.put(chunk)
+            if not chunk:
+                return
 
     def send(self, data):
         self.proc.stdin.write(data)
@@ -71,15 +89,22 @@ class PipeChannel:
         return len(data)
 
     def recv_ready(self):
-        return bool(select.select([self.out], [], [], 0)[0])
+        return bool(self._pending) or not self._chunks.empty()
 
     def recv(self, size):
-        return os.read(self.out, size)
+        if not self._pending:
+            self._pending = self._chunks.get()
+            if not self._pending:
+                self._chunks.put(b"")  # keep reporting EOF on later calls
+                return b""
+        chunk, self._pending = self._pending[:size], self._pending[size:]
+        return chunk
 
     def close(self):
         self.proc.kill()
         self.proc.wait()
         self.proc.stdin.close()
+        self._reader.join(timeout=5)
         self.proc.stdout.close()
 
 

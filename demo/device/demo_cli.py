@@ -84,12 +84,28 @@ def execute(line):
     return EXIT_ERROR, "ERROR: unknown command '%s' (try help)" % line.strip()
 
 
+def read_password(prompt):
+    """getpass on a real terminal; plain stdin when piped (tests, SSH exec).
+
+    On Windows getpass reads the console keyboard, not stdin, so it would
+    hang when the gateway or the test suite drives this CLI over pipes.
+    """
+    if sys.stdin.isatty():
+        return getpass.getpass(prompt)
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    line = sys.stdin.readline()
+    if not line:
+        raise EOFError
+    return line.rstrip("\r\n")
+
+
 def login():
     with open(CONFIG_PATH) as f:
         config = json.load(f)
     for _ in range(MAX_LOGIN_ATTEMPTS):
         user = input("Please login: ").strip()
-        password = getpass.getpass("Password: ")
+        password = read_password("Password: ")
         digest = hashlib.sha256(password.encode()).hexdigest()
         if user == config["login_user"] and hmac.compare_digest(digest, config["login_password_sha256"]):
             print("Welcome to %s" % MODEL)
