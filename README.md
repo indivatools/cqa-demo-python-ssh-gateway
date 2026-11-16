@@ -251,6 +251,9 @@ docker-compose.yml    gateway + fake device for the local demo
 python3 -m unittest discover -s tests -v
 ```
 
+Run it from the repository root. The suite runs on Linux, macOS and Windows
+(on Windows use `python` or `py` if `python3` is not on your PATH).
+
 No dependencies are needed. SSH is faked for exec mode, and shell mode drives
 the real `demo/device/demo_cli.py` over pipes, which covers the in-band login,
 prompt detection and echo stripping.
